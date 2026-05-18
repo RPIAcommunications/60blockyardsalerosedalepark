@@ -1,0 +1,600 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rosedale Park 60-Block Yard Sale</title>
+  <!-- Leaflet CSS & JS loaded in <head> so L is defined before any script runs -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <!-- SheetJS for real Excel export -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --gd: #2C4A2E; --gm: #4CAF50; --gl: #C8E6C9; --gp: #E8F5E9;
+      --fb: #fef3c7; --fbr: #fcd34d; --ft: #92400e;
+      --bb: #ede9fe; --bbr: #c4b5fd; --bt: #4c1d95;
+      --tx: #1a1a1a; --mu: #5a6b5a; --bd: #d4e0d4;
+      --bg: #f7faf7; --cd: #ffffff; --dg: #c0392b;
+      --r: 10px; --rl: 16px;
+    }
+    body { font-family:'DM Sans',sans-serif; background:var(--bg); color:var(--tx); min-height:100vh; }
+
+    header { background:var(--gd); padding:1rem 1.5rem; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px; }
+    header h1 { font-family:'Playfair Display',serif; font-size:clamp(16px,3.5vw,22px); color:var(--gl); line-height:1.2; }
+    header p  { font-size:12px; color:#A5D6A7; margin-top:2px; }
+    .hb { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .badge { font-size:12px; font-weight:500; padding:5px 12px; border-radius:20px; white-space:nowrap; }
+    #cnt-badge  { background:rgba(255,255,255,.13); border:1px solid rgba(255,255,255,.2); color:var(--gl); }
+    #food-badge { background:var(--fb); border:1px solid var(--fbr); color:var(--ft); display:none; }
+
+    .wrap { max-width:1100px; margin:0 auto; padding:1.25rem; }
+
+    /* TOOLBAR */
+    .toolbar { display:flex; gap:8px; flex-wrap:wrap; margin-bottom:1rem; }
+    .toolbar button { padding:10px 18px; border-radius:var(--r); font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500; cursor:pointer; border:1px solid var(--bd); background:var(--cd); color:var(--tx); transition:all .15s; }
+    #add-btn { background:var(--gd); color:var(--gl); border-color:var(--gd); font-size:14px; }
+    #add-btn:hover { background:#3a5e3c; }
+    #csv-btn:hover, #xls-btn:hover, #pdf-btn:hover { background:var(--gp); border-color:var(--gm); color:var(--gd); }
+
+    /* FORM */
+    #reg-panel { display:none; background:var(--cd); border:1px solid var(--bd); border-radius:var(--rl); padding:1.25rem; margin-bottom:1rem; }
+    #reg-panel h2 { font-family:'Playfair Display',serif; font-size:18px; color:var(--gd); margin-bottom:1rem; }
+    .fg { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+    .fg .f { grid-column:1/-1; }
+    @media(max-width:540px){ .fg { grid-template-columns:1fr; } .fg .f { grid-column:1; } }
+    label { display:block; font-size:11px; font-weight:500; color:var(--mu); margin-bottom:4px; text-transform:uppercase; letter-spacing:.5px; }
+    input[type=text], textarea { width:100%; padding:9px 12px; font-family:'DM Sans',sans-serif; font-size:14px; border:1px solid var(--bd); border-radius:var(--r); background:var(--bg); color:var(--tx); outline:none; transition:border-color .15s; }
+    input[type=text]:focus, textarea:focus { border-color:var(--gm); box-shadow:0 0 0 3px rgba(76,175,80,.15); }
+    textarea { resize:vertical; }
+
+    .vg { display:flex; gap:8px; flex-wrap:wrap; }
+    .vb { flex:1; min-width:110px; padding:9px 10px; border-radius:var(--r); border:1.5px solid var(--bd); background:var(--bg); font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500; cursor:pointer; text-align:center; transition:all .15s; color:var(--mu); }
+    .vb.ay { border-color:var(--gm); background:var(--gp); color:var(--gd); }
+    .vb.af { border-color:#f59e0b; background:var(--fb); color:var(--ft); }
+    .vb.ab { border-color:#7c3aed; background:var(--bb); color:var(--bt); }
+
+    .fa { display:flex; gap:8px; margin-top:12px; }
+    .bp { flex:1; background:var(--gd); color:var(--gl); border:none; border-radius:var(--r); font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; padding:10px; cursor:pointer; }
+    .bp:hover { background:#3a5e3c; }
+    .bp:disabled { background:#aaa; cursor:not-allowed; }
+    .bc { padding:10px 16px; background:transparent; border:1px solid var(--bd); border-radius:var(--r); font-family:'DM Sans',sans-serif; font-size:14px; color:var(--mu); cursor:pointer; }
+    #reg-msg { font-size:12px; margin-top:8px; display:none; padding:8px 12px; border-radius:var(--r); }
+    #reg-msg.ok  { background:#f0fdf4; color:#166534; border:1px solid #86efac; }
+    #reg-msg.err { background:#fff5f5; color:var(--dg); border:1px solid #fca5a5; }
+    #reg-msg.warn{ background:#fffbeb; color:#92400e; border:1px solid var(--fbr); }
+
+    /* MAP */
+    #map { width:100%; height:480px; border-radius:var(--rl); border:1px solid var(--bd); margin-bottom:1rem; }
+    @media(min-width:700px){ #map { height:560px; } }
+
+    /* Custom pins */
+    .pin { width:28px; height:28px; border-radius:50% 50% 50% 0; transform:rotate(-45deg); border:2px solid rgba(255,255,255,.9); box-shadow:0 2px 6px rgba(0,0,0,.35); cursor:pointer; }
+    .pin.yard { background:var(--gd); }
+    .pin.food { background:var(--ft); }
+    .pin.both { background:var(--bt); }
+    .pin-center { width:18px; height:18px; border-radius:50%; background:#1d4ed8; border:3px solid #fff; box-shadow:0 2px 8px rgba(0,0,0,.4); }
+
+    .leaflet-popup-content-wrapper { border-radius:14px !important; box-shadow:0 4px 20px rgba(0,0,0,.15) !important; }
+    .leaflet-popup-content { margin:14px 16px !important; font-family:'DM Sans',sans-serif; }
+    .pw { max-width:250px; }
+    .pw .pa { font-size:14px; font-weight:600; color:var(--gd); margin-bottom:5px; }
+    .pw .pv { font-size:11px; font-weight:500; padding:2px 9px; border-radius:20px; display:inline-block; margin-bottom:6px; }
+    .pw .pm { font-size:12px; color:var(--mu); margin-bottom:5px; }
+    .pw .pl { font-size:11px; font-weight:600; color:var(--mu); margin-bottom:3px; }
+    .pw .pts { display:flex; flex-wrap:wrap; gap:3px; margin-bottom:5px; }
+    .pw .pt  { font-size:11px; padding:2px 8px; border-radius:20px; }
+    .pt.gy { background:var(--gp); color:var(--gd); border:1px solid #c3dfc5; }
+    .pt.gf { background:var(--fb); color:var(--ft); border:1px solid var(--fbr); }
+
+    /* Legend */
+    .legend { background:var(--cd); border:1px solid var(--bd); border-radius:var(--r); padding:8px 14px; display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--mu); margin-bottom:1rem; align-items:center; }
+    .ld { width:12px; height:12px; border-radius:50%; display:inline-block; margin-right:4px; vertical-align:middle; }
+
+    /* CARDS */
+    #list-hdr { font-size:15px; font-weight:500; color:var(--gd); margin-bottom:10px; display:none; }
+    #list { display:grid; grid-template-columns:repeat(auto-fill,minmax(270px,1fr)); gap:10px; margin-bottom:2rem; }
+    .card { background:var(--cd); border:1px solid var(--bd); border-radius:var(--rl); padding:1rem; transition:border-color .15s,box-shadow .15s; }
+    .card:hover { border-color:var(--gm); box-shadow:0 2px 12px rgba(44,74,46,.1); }
+    .ct { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:4px; }
+    .ca { font-size:14px; font-weight:500; flex:1; cursor:pointer; color:var(--gd); }
+    .ca:hover { text-decoration:underline; }
+    .cbtns { display:flex; gap:4px; flex-shrink:0; }
+    .cbtn { background:none; border:1px solid var(--bd); border-radius:6px; font-size:11px; color:var(--mu); padding:3px 8px; cursor:pointer; font-family:'DM Sans',sans-serif; transition:all .15s; }
+    .cbtn:hover { background:var(--bg); }
+    .cbtn.del:hover { border-color:var(--dg); color:var(--dg); }
+    .cm { font-size:12px; color:var(--mu); margin-bottom:6px; }
+    .vbadge { display:inline-block; font-size:11px; font-weight:500; padding:2px 9px; border-radius:20px; margin-bottom:6px; }
+    .vbadge.yard { background:var(--gp); color:var(--gd); border:1px solid #c3dfc5; }
+    .vbadge.food { background:var(--fb); color:var(--ft); border:1px solid var(--fbr); }
+    .vbadge.both { background:var(--bb); color:var(--bt); border:1px solid var(--bbr); }
+    .tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+    .tag     { font-size:11px; background:var(--gp); color:var(--gd); border:1px solid #c3dfc5; padding:2px 9px; border-radius:20px; font-weight:500; }
+    .tag.fd  { background:var(--fb); color:var(--ft); border-color:var(--fbr); }
+    .noi { font-size:12px; color:#aaa; font-style:italic; }
+
+    /* MODAL */
+    #mo { display:none; position:fixed; inset:0; background:rgba(0,0,0,.45); z-index:9999; align-items:center; justify-content:center; padding:1rem; }
+    #mb { background:var(--cd); border-radius:var(--rl); padding:1.5rem; max-width:440px; width:100%; border:1px solid var(--bd); position:relative; max-height:90vh; overflow-y:auto; }
+    #mt { font-family:'Playfair Display',serif; font-size:18px; color:var(--gd); margin-bottom:1rem; }
+    #mc { position:absolute; top:12px; right:14px; background:none; border:none; font-size:24px; color:var(--mu); cursor:pointer; line-height:1; }
+    .mfg { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:10px; }
+    .mfg .f { grid-column:1/-1; }
+    @media(max-width:480px){ .mfg { grid-template-columns:1fr; } .mfg .f { grid-column:1; } }
+    .mact { display:flex; gap:8px; margin-top:14px; flex-wrap:wrap; }
+    .bsv { flex:1; min-width:120px; background:var(--gd); color:var(--gl); border:none; border-radius:var(--r); font-family:'DM Sans',sans-serif; font-size:14px; font-weight:500; padding:10px; cursor:pointer; }
+    .bsv:hover { background:#3a5e3c; }
+    .bdl { padding:10px 16px; background:transparent; border:1px solid var(--dg); border-radius:var(--r); font-family:'DM Sans',sans-serif; font-size:14px; color:var(--dg); cursor:pointer; }
+    .bdl:hover { background:#fff5f5; }
+    #dc { display:none; margin-top:12px; padding:12px; background:#fff5f5; border:1px solid #fca5a5; border-radius:var(--r); }
+    #dc p { font-size:13px; color:var(--dg); margin-bottom:10px; }
+    .dcb { display:flex; gap:8px; }
+    .by { flex:1; background:var(--dg); color:#fff; border:none; border-radius:var(--r); font-family:'DM Sans',sans-serif; font-size:13px; font-weight:500; padding:9px; cursor:pointer; }
+    .bn { flex:1; background:transparent; border:1px solid var(--bd); border-radius:var(--r); font-family:'DM Sans',sans-serif; font-size:13px; color:var(--mu); padding:9px; cursor:pointer; }
+
+    /* ── PRINT / PDF STYLES ─────────────────────────────── */
+    @media print {
+      body { background:#fff; font-family: Georgia, serif; }
+      header, .toolbar, #reg-panel, #map, .legend, .cbtns, #mo, footer { display:none !important; }
+      #print-header { display:block !important; }
+      #print-map-img { display:block !important; }
+      .wrap { padding:0; max-width:100%; }
+      #list-hdr { display:block !important; font-size:16px; margin-bottom:12px; color:#2C4A2E; }
+      #list { display:block; }
+      .card { border:1px solid #ccc; border-radius:0; margin-bottom:10px; page-break-inside:avoid; padding:10px 14px; box-shadow:none; }
+      .card:hover { border-color:#ccc; box-shadow:none; }
+      .ca { color:#2C4A2E; text-decoration:none; }
+      .vbadge, .tag { border:1px solid #ccc; }
+    }
+    #print-header { display:none; padding:0 0 16px 0; border-bottom:2px solid #2C4A2E; margin-bottom:18px; }
+    #print-header h1 { font-family:'Playfair Display',serif; font-size:22px; color:#2C4A2E; }
+    #print-header p  { font-size:13px; color:#5a6b5a; margin-top:4px; }
+    #print-map-img { display:none; width:100%; max-height:300px; object-fit:cover; border:1px solid #ccc; margin-bottom:18px; border-radius:6px; }
+
+    footer { text-align:center; font-size:12px; color:var(--mu); padding:1.5rem 1rem; border-top:1px solid var(--bd); }
+  </style>
+</head>
+<body>
+
+<header>
+  <div>
+    <h1>🌿 Rosedale Park 60-Block Yard Sale</h1>
+    <p>Register your address &amp; list your items for sale</p>
+  </div>
+  <div class="hb">
+    <div class="badge" id="cnt-badge">0 participants</div>
+    <div class="badge" id="food-badge">🍽 Food available</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- Print-only header (hidden on screen, shown on print) -->
+  <div id="print-header">
+    <h1>🌿 Rosedale Park 60-Block Yard Sale</h1>
+    <p id="print-subtitle">Participant Directory — printed <span id="print-date"></span></p>
+  </div>
+  <!-- Static map image for print (loaded on demand) -->
+  <img id="print-map-img" src="" alt="Neighborhood map" crossorigin="anonymous">
+
+  <div class="toolbar">
+    <button id="add-btn" onclick="openForm()">+ Register My Address</button>
+    <button id="csv-btn" onclick="exportCSV()">⬇ Export CSV</button>
+    <button id="xls-btn" onclick="exportExcel()">⬇ Export Excel (.xlsx)</button>
+    <button id="pdf-btn" onclick="exportPDF()">🖨 Print / Save PDF</button>
+  </div>
+
+  <!-- Register form -->
+  <div id="reg-panel">
+    <h2>Register your yard sale</h2>
+    <div class="fg">
+      <div class="f">
+        <label for="ia">Street address *</label>
+        <input id="ia" type="text" placeholder="e.g. 14800 Ashton Ave">
+      </div>
+      <div>
+        <label for="in">Your name (optional)</label>
+        <input id="in" type="text" placeholder="e.g. The Johnson Family">
+      </div>
+      <div>
+        <label for="it">Hours (optional)</label>
+        <input id="it" type="text" placeholder="e.g. 8am – 2pm">
+      </div>
+      <div class="f">
+        <label>What are you selling? *</label>
+        <div class="vg">
+          <button type="button" class="vb ay" data-vt="yard" onclick="sv('yard')">🏷 Yard Sale Items</button>
+          <button type="button" class="vb"    data-vt="food" onclick="sv('food')">🍽 Food &amp; Drinks</button>
+          <button type="button" class="vb"    data-vt="both" onclick="sv('both')">🏷🍽 Both</button>
+        </div>
+      </div>
+      <div class="f" id="ir">
+        <label for="ii">Items for sale — separate with commas</label>
+        <textarea id="ii" rows="3" placeholder="e.g. furniture, kids clothes, tools, books, electronics, plants"></textarea>
+      </div>
+      <div class="f" id="fr" style="display:none;">
+        <label for="if2">Food &amp; drinks — separate with commas</label>
+        <textarea id="if2" rows="2" placeholder="e.g. BBQ plates, lemonade, baked goods, tamales"></textarea>
+      </div>
+    </div>
+    <div id="reg-msg"></div>
+    <div class="fa">
+      <button class="bp" id="sub-btn" onclick="register()">📍 Add to Map</button>
+      <button class="bc" onclick="closeForm()">Cancel</button>
+    </div>
+  </div>
+
+  <div id="map"></div>
+
+  <div class="legend">
+    <span style="font-weight:500;color:var(--tx);">Map key:</span>
+    <span><span class="ld" style="background:#2C4A2E;"></span>Yard sale</span>
+    <span><span class="ld" style="background:#92400e;"></span>Food &amp; drinks</span>
+    <span><span class="ld" style="background:#4c1d95;"></span>Yard sale + food</span>
+    <span><span class="ld" style="background:#1d4ed8;"></span>Event center</span>
+  </div>
+
+  <div id="list-hdr">Registered Participants</div>
+  <div id="list"></div>
+</div>
+
+<!-- Edit Modal -->
+<div id="mo" onclick="moClick(event)">
+  <div id="mb">
+    <button id="mc" onclick="closeMo()">×</button>
+    <div id="mt">Edit entry</div>
+    <div class="mfg">
+      <div class="f"><label>Street address</label><input id="ea" type="text"></div>
+      <div><label>Name</label><input id="en" type="text"></div>
+      <div><label>Hours</label><input id="et" type="text"></div>
+      <div class="f">
+        <label>What are you selling?</label>
+        <div class="vg">
+          <button type="button" class="vb" data-evt="yard" onclick="sev('yard')">🏷 Yard Sale</button>
+          <button type="button" class="vb" data-evt="food" onclick="sev('food')">🍽 Food</button>
+          <button type="button" class="vb" data-evt="both" onclick="sev('both')">🏷🍽 Both</button>
+        </div>
+      </div>
+      <div class="f" id="eir"><label>Items for sale</label><textarea id="ei" rows="3"></textarea></div>
+      <div class="f" id="efr" style="display:none;"><label>Food &amp; drinks</label><textarea id="ef" rows="2"></textarea></div>
+    </div>
+    <div class="mact">
+      <button class="bsv" onclick="saveEdit()">Save changes</button>
+      <button class="bdl" onclick="showDC()">Delete entry</button>
+    </div>
+    <div id="dc">
+      <p>Are you sure you want to remove this entry from the map?</p>
+      <div class="dcb">
+        <button class="by" onclick="confirmDel()">Yes, remove it</button>
+        <button class="bn" onclick="hideDC()">Cancel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>Rosedale Park Improvement Association &nbsp;·&nbsp; Centered on 14869 Greenview Rd, Detroit, MI 48223</footer>
+
+<script>
+/* ─── STATE ─────────────────────────────────────────────── */
+var SK = 'rpia_ys_v4';
+var entries = [], mkrs = {}, map, curV = 'yard', editV = 'yard', editId = null;
+var CY = 42.38060, CX = -83.24410;
+
+function load() { try { entries = JSON.parse(localStorage.getItem(SK))||[]; } catch(e){ entries=[]; } }
+function save() { localStorage.setItem(SK, JSON.stringify(entries)); }
+
+/* ─── MAP ───────────────────────────────────────────────── */
+function initMap() {
+  map = L.map('map', { center:[CY,CX], zoom:14, zoomControl:true });
+
+  var primary = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',{
+    attribution:'&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com">CARTO</a>',
+    subdomains:'abcd', maxZoom:19
+  });
+  var fallback = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{
+    attribution:'&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a>',
+    maxZoom:19
+  });
+  primary.addTo(map);
+  primary.on('tileerror', function(){
+    if (!map.hasLayer(fallback)) { map.removeLayer(primary); fallback.addTo(map); }
+  });
+
+  L.circle([CY,CX],{ radius:3219, color:'#2C4A2E', weight:2, fillColor:'#4CAF50', fillOpacity:.07, dashArray:'8,5' }).addTo(map);
+  L.marker([CY,CX],{ icon:L.divIcon({ className:'', html:'<div class="pin-center"></div>', iconAnchor:[9,9] }) })
+    .bindPopup('<div style="font-family:DM Sans,sans-serif;font-size:13px;font-weight:600;color:#1d4ed8;">📍 Event Center<br><span style="font-weight:400;color:#5a6b5a;font-size:12px;">14869 Greenview Rd</span></div>')
+    .addTo(map);
+
+  entries.forEach(dropPin);
+}
+
+/* ─── GEOCODE via Nominatim ─────────────────────────────── */
+function geocode(addr, cb) {
+  var q = encodeURIComponent(addr + ', Detroit, MI 48223');
+  fetch('https://nominatim.openstreetmap.org/search?format=json&limit=1&q='+q+'&countrycodes=us',
+        { headers:{'Accept-Language':'en'} })
+    .then(function(r){ return r.json(); })
+    .then(function(d){ d&&d.length ? cb(null,+d[0].lat,+d[0].lon) : cb('notfound'); })
+    .catch(function(){ cb('error'); });
+}
+
+/* ─── PINS ──────────────────────────────────────────────── */
+function vl(vt){ return vt==='food'?'🍽 Food & Drinks':vt==='both'?'🏷🍽 Yard Sale + Food':'🏷 Yard Sale'; }
+function vc(vt){ return vt==='food'?{bg:'#fef3c7',bd:'#fcd34d',tx:'#92400e'}:vt==='both'?{bg:'#ede9fe',bd:'#c4b5fd',tx:'#4c1d95'}:{bg:'#E8F5E9',bd:'#c3dfc5',tx:'#2C4A2E'}; }
+
+function dropPin(e) {
+  if (mkrs[e.id]) { mkrs[e.id].remove(); }
+  var el = document.createElement('div'); el.className='pin '+e.vendType;
+  var icon = L.divIcon({ className:'', html:el.outerHTML, iconAnchor:[14,28] });
+  var popup = L.popup({ maxWidth:280, offset:[0,-24] }).setContent(buildPopup(e));
+  var m = L.marker([e.lat,e.lng],{ icon:icon }).bindPopup(popup).addTo(map);
+  mkrs[e.id] = m;
+}
+
+function buildPopup(e) {
+  var ils = e.items?e.items.split(',').map(function(s){return s.trim();}).filter(Boolean):[];
+  var fls = e.food ?e.food.split(',').map(function(s){return s.trim();}).filter(Boolean):[];
+  var c = vc(e.vendType);
+  var h = '<div class="pw">'+
+    '<div class="pa">'+esc(e.addr)+'</div>'+
+    '<span class="pv" style="background:'+c.bg+';border:1px solid '+c.bd+';color:'+c.tx+';">'+vl(e.vendType)+'</span>';
+  var meta=[e.name,e.time?'⏰ '+e.time:''].filter(Boolean);
+  if(meta.length) h+='<div class="pm">'+meta.map(esc).join(' · ')+'</div>';
+  if(ils.length)  h+='<div class="pl">Items for sale:</div><div class="pts">'+ils.slice(0,8).map(function(i){return '<span class="pt gy">'+esc(i)+'</span>';}).join('')+(ils.length>8?'<span class="pt gy">+more</span>':'')+'</div>';
+  if(fls.length)  h+='<div class="pl" style="color:#92400e;">Food &amp; drinks:</div><div class="pts">'+fls.slice(0,6).map(function(i){return '<span class="pt gf">'+esc(i)+'</span>';}).join('')+'</div>';
+  return h+'</div>';
+}
+
+function rmPin(id){ if(mkrs[id]){ mkrs[id].remove(); delete mkrs[id]; } }
+
+/* ─── VEND TYPE ─────────────────────────────────────────── */
+function sv(t){
+  curV=t;
+  document.querySelectorAll('.vb[data-vt]').forEach(function(b){
+    var cls='vb'; if(b.dataset.vt===t){ cls+= t==='yard'?' ay':t==='food'?' af':' ab'; } b.className=cls;
+  });
+  document.getElementById('ir').style.display = t==='food'?'none':'block';
+  document.getElementById('fr').style.display = t==='yard'?'none':'block';
+}
+function sev(t){
+  editV=t;
+  document.querySelectorAll('.vb[data-evt]').forEach(function(b){
+    var cls='vb'; if(b.dataset.evt===t){ cls+= t==='yard'?' ay':t==='food'?' af':' ab'; } b.className=cls;
+  });
+  document.getElementById('eir').style.display = t==='food'?'none':'block';
+  document.getElementById('efr').style.display = t==='yard'?'none':'block';
+}
+
+/* ─── FORM ──────────────────────────────────────────────── */
+function openForm(){
+  document.getElementById('reg-panel').style.display='block';
+  document.getElementById('add-btn').style.display='none';
+  document.getElementById('ia').focus();
+}
+function closeForm(){
+  document.getElementById('reg-panel').style.display='none';
+  document.getElementById('add-btn').style.display='block';
+  setMsg('','');
+}
+function setMsg(txt,cls){
+  var el=document.getElementById('reg-msg');
+  el.textContent=txt; el.className=cls; el.style.display=txt?'block':'none';
+}
+
+function register(){
+  var addr=document.getElementById('ia').value.trim();
+  var name=document.getElementById('in').value.trim();
+  var time=document.getElementById('it').value.trim();
+  var items=document.getElementById('ii').value.trim();
+  var food=document.getElementById('if2').value.trim();
+  if(!addr){ setMsg('Please enter your street address.','err'); return; }
+  setMsg('','');
+  var btn=document.getElementById('sub-btn');
+  btn.textContent='📍 Locating address…'; btn.disabled=true;
+
+  geocode(addr, function(err,lat,lng){
+    btn.textContent='📍 Add to Map'; btn.disabled=false;
+    var approx=false;
+    if(err){
+      var a=Math.random()*2*Math.PI, d=0.006+Math.random()*0.012;
+      lat=CY+d*Math.cos(a); lng=CX+d*Math.sin(a)*1.3; approx=true;
+    }
+    var e={ id:Date.now(), addr:addr, name:name, time:time, items:items, food:food, vendType:curV, lat:lat, lng:lng };
+    entries.push(e); save(); dropPin(e); addCard(e); updateCount();
+    ['ia','in','it'].forEach(function(id){ document.getElementById(id).value=''; });
+    document.getElementById('ii').value=''; document.getElementById('if2').value='';
+    if(approx){
+      setMsg('⚠ Could not find exact address — placed approximately in the neighborhood. Check the spelling and try editing if needed.','warn');
+    } else {
+      setMsg('✅ You\'re on the map!','ok');
+      map.flyTo([lat,lng],17);
+      setTimeout(closeForm,1600);
+    }
+  });
+}
+
+/* ─── CARDS ─────────────────────────────────────────────── */
+function renderAll(){
+  document.getElementById('list').innerHTML='';
+  entries.forEach(addCard);
+  document.getElementById('list-hdr').style.display=entries.length?'block':'none';
+}
+
+function addCard(e){
+  document.getElementById('list-hdr').style.display='block';
+  var ils=e.items?e.items.split(',').map(function(s){return s.trim();}).filter(Boolean):[];
+  var fls=e.food ?e.food.split(',').map(function(s){return s.trim();}).filter(Boolean):[];
+  var meta=[e.name,e.time?'⏰ '+e.time:''].filter(Boolean);
+  var vt=e.vendType;
+  var th='';
+  if(vt!=='food'&&ils.length) th+=ils.map(function(i){return '<span class="tag">'+esc(i)+'</span>';}).join('');
+  if(vt!=='yard'&&fls.length) th+=fls.map(function(i){return '<span class="tag fd">🍽 '+esc(i)+'</span>';}).join('');
+  if(!th) th='<span class="noi">No items listed yet</span>';
+
+  var div=document.createElement('div');
+  div.className='card'; div.id='card-'+e.id;
+  div.innerHTML='<div class="ct">'+
+    '<div class="ca" onclick="focus2('+e.id+')">'+esc(e.addr)+'</div>'+
+    '<div class="cbtns"><button class="cbtn" onclick="openEdit('+e.id+')">✏ Edit</button>'+
+    '<button class="cbtn del" onclick="qDel('+e.id+')">✕ Delete</button></div></div>'+
+    '<span class="vbadge '+vt+'">'+vl(vt)+'</span>'+
+    (meta.length?'<div class="cm">'+meta.map(esc).join(' · ')+'</div>':'')+
+    '<div class="tags">'+th+'</div>';
+  document.getElementById('list').appendChild(div);
+}
+
+function rebuildCard(e){
+  var old=document.getElementById('card-'+e.id); if(old) old.remove(); addCard(e);
+}
+
+function focus2(id){
+  var e=entries.find(function(x){return x.id===id;}); if(!e) return;
+  map.flyTo([e.lat,e.lng],17);
+  if(mkrs[id]) mkrs[id].openPopup();
+}
+
+/* ─── EDIT ──────────────────────────────────────────────── */
+function openEdit(id){
+  var e=entries.find(function(x){return x.id===id;}); if(!e) return;
+  editId=id;
+  document.getElementById('ea').value=e.addr;
+  document.getElementById('en').value=e.name||'';
+  document.getElementById('et').value=e.time||'';
+  document.getElementById('ei').value=e.items||'';
+  document.getElementById('ef').value=e.food||'';
+  sev(e.vendType||'yard');
+  document.getElementById('dc').style.display='none';
+  document.getElementById('mo').style.display='flex';
+}
+function closeMo(){ document.getElementById('mo').style.display='none'; editId=null; }
+function moClick(ev){ if(ev.target===document.getElementById('mo')) closeMo(); }
+
+function saveEdit(){
+  var idx=entries.findIndex(function(x){return x.id===editId;}); if(idx<0) return;
+  var e=entries[idx];
+  e.addr    =document.getElementById('ea').value.trim()||e.addr;
+  e.name    =document.getElementById('en').value.trim();
+  e.time    =document.getElementById('et').value.trim();
+  e.items   =document.getElementById('ei').value.trim();
+  e.food    =document.getElementById('ef').value.trim();
+  e.vendType=editV;
+  save();
+  geocode(e.addr, function(err,lat,lng){
+    if(!err){ e.lat=lat; e.lng=lng; save(); }
+    dropPin(e); rebuildCard(e); updateCount(); closeMo();
+  });
+}
+
+/* ─── DELETE ────────────────────────────────────────────── */
+function showDC(){ document.getElementById('dc').style.display='block'; }
+function hideDC(){ document.getElementById('dc').style.display='none'; }
+function confirmDel(){ delEntry(editId); closeMo(); }
+function qDel(id){ if(confirm('Remove this entry from the map?')) delEntry(id); }
+function delEntry(id){
+  rmPin(id);
+  entries=entries.filter(function(e){return e.id!==id;}); save();
+  var c=document.getElementById('card-'+id); if(c) c.remove();
+  if(!document.getElementById('list').children.length) document.getElementById('list-hdr').style.display='none';
+  updateCount();
+}
+
+/* ─── EXPORT CSV ────────────────────────────────────────── */
+function dataRows(){
+  return entries.map(function(e){
+    return {
+      'Name': e.name||'',
+      'Address': e.addr,
+      'Hours': e.time||'',
+      'Selling Type': vl(e.vendType).replace(/[🏷🍽]/g,'').trim(),
+      'Items For Sale': e.items||'',
+      'Food & Drinks': e.food||'',
+      'Latitude': e.lat,
+      'Longitude': e.lng
+    };
+  });
+}
+
+function exportCSV(){
+  if(!entries.length){ alert('No participants yet.'); return; }
+  var hdrs=['Name','Address','Hours','Selling Type','Items For Sale','Food & Drinks','Latitude','Longitude'];
+  var rows=[hdrs].concat(entries.map(function(e){
+    return [e.name||'',e.addr,e.time||'',vl(e.vendType).replace(/[🏷🍽]/g,'').trim(),e.items||'',e.food||'',e.lat,e.lng];
+  }));
+  var csv=rows.map(function(r){ return r.map(function(c){ return '"'+String(c).replace(/"/g,'""')+'"'; }).join(','); }).join('\n');
+  dl('rosedale_yardsale.csv','data:text/csv;charset=utf-8,'+encodeURIComponent(csv));
+}
+
+/* ─── EXPORT EXCEL (.xlsx via SheetJS) ──────────────────── */
+function exportExcel(){
+  if(!entries.length){ alert('No participants yet.'); return; }
+  if(typeof XLSX === 'undefined'){ alert('Excel library not loaded yet — please try again in a moment.'); return; }
+
+  var ws_data = [['Name','Address','Hours','Selling Type','Items For Sale','Food & Drinks','Latitude','Longitude']];
+  entries.forEach(function(e){
+    ws_data.push([
+      e.name||'', e.addr, e.time||'',
+      vl(e.vendType).replace(/[🏷🍽]/g,'').trim(),
+      e.items||'', e.food||'', e.lat, e.lng
+    ]);
+  });
+
+  var wb = XLSX.utils.book_new();
+  var ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+  // Column widths
+  ws['!cols'] = [
+    {wch:22},{wch:30},{wch:16},{wch:20},{wch:40},{wch:30},{wch:12},{wch:12}
+  ];
+
+  // Style header row bold (SheetJS CE supports basic cell props)
+  var range = XLSX.utils.decode_range(ws['!ref']);
+  for(var C=range.s.c; C<=range.e.c; C++){
+    var addr = XLSX.utils.encode_cell({r:0,c:C});
+    if(!ws[addr]) continue;
+    ws[addr].s = { font:{bold:true}, fill:{fgColor:{rgb:'C8E6C9'}} };
+  }
+
+  XLSX.utils.book_append_sheet(wb, ws, 'Participants');
+  XLSX.writeFile(wb, 'rosedale_yardsale.xlsx');
+}
+
+/* ─── EXPORT PDF (print dialog) ─────────────────────────── */
+function exportPDF(){
+  if(!entries.length){ alert('No participants yet. Register some addresses first.'); return; }
+
+  // Set static map image (OpenStreetMap static tiles via bbox)
+  var mapImg = document.getElementById('print-map-img');
+  // Use a static map snapshot via OSM tile approach — bbox around center
+  // We'll use the openstreetmap.org export URL pattern
+  var bbox = [CX-0.04, CY-0.025, CX+0.04, CY+0.025];
+  mapImg.src = 'https://www.openstreetmap.org/export/embed.html?bbox='+bbox.join('%2C')+'&layer=mapnik&marker='+CY+'%2C'+CX;
+  // Use a reliable static image instead
+  mapImg.src = 'https://staticmap.openstreetmap.de/staticmap.php?center='+CY+','+CX+'&zoom=13&size=800x300&maptype=mapnik';
+
+  // Set print date
+  document.getElementById('print-date').textContent = new Date().toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+
+  // Trigger print
+  window.print();
+}
+
+function dl(name,uri){ var a=document.createElement('a'); a.href=uri; a.download=name; a.click(); }
+
+/* ─── MISC ──────────────────────────────────────────────── */
+function updateCount(){
+  var n=entries.length;
+  document.getElementById('cnt-badge').textContent=n+' participant'+(n!==1?'s':'');
+  document.getElementById('food-badge').style.display=entries.some(function(e){return e.vendType==='food'||e.vendType==='both';}) ? 'block':'none';
+}
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+
+/* ─── BOOT ──────────────────────────────────────────────── */
+// L is guaranteed defined here because Leaflet JS is in <head>
+window.addEventListener('DOMContentLoaded', function(){
+  load(); initMap(); renderAll(); updateCount();
+});
+</script>
+</body>
+</html>
